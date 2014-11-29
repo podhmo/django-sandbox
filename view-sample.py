@@ -24,7 +24,7 @@ if __name__ == "__main__":
     from django.conf import settings
     import django
     settings.configure(
-        ROOT_URLCONF='__main__',  # xxx:
+        ROOT_URLCONF=__name__,  # xxx:
         ALLOWED_HOSTS=['*']
     )
     django.setup()

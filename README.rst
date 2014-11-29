@@ -1,7 +1,7 @@
 django-sandbox
 ----------------------------------------
 
-A tiny sandbox environemnt for django-begginer.
+A tiny sandbox environment for django-begginer.
 
 why django-sandbox?
 ----------------------------------------
@@ -11,9 +11,9 @@ she-or-he wonder what the way, checking that is correct or not.
 
 Of cource, normally, following such as below actions
 
-1. Create a project.
-2. Edit settings.
-3. Add code for something about you want to check for.
+1. Creating a project.
+2. Editting settings.
+3. Adding code for something about you want to check for.
 
 this is too tiresome, at least for me.
 
@@ -23,6 +23,7 @@ what are contents of django-sandbox?
 - about model
 - about template
 - about form
+- about view(including urlmatch)
 
 these sample are only one file (or a few of external files).
 

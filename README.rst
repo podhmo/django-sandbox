@@ -27,5 +27,11 @@ what are contents of django-sandbox?
 
 these sample are only one file (or a few of external files).
 
+server example
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+django is also able to be a onefile-application such as flask and pyramid.
 
+.. code:: bash
+
+   python server-example runserver

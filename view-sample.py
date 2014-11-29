@@ -6,7 +6,8 @@ from django.http import HttpResponse
 
 # view
 def hello_view(request):
-    print("this is {}".format("TODO. generate url"))
+    from django.core.urlresolvers import reverse
+    print("this is {}".format(reverse("hello")))
     return HttpResponse("ok")
 
 

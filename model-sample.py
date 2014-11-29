@@ -31,7 +31,7 @@ def get_style():
     return no_style()
 
 
-def create_tables(model):
+def create_table(model):
     connection = get_connection()
     cursor = get_cursor(connection)
     style = get_style()
@@ -42,7 +42,7 @@ def create_tables(model):
         cursor.execute(statement)
 
     for f in model._meta.many_to_many:
-        create_tables(f.rel.through)
+        create_table(f.rel.through)
 
 
 # model definition
@@ -59,7 +59,7 @@ class Person(models.Model):
 if __name__ == "__main__":
     import django
     django.setup()
-    create_tables(Person)
+    create_table(Person)
 
     # model save
     Person(name="foo").save()

@@ -17,6 +17,9 @@ if __name__ == "__main__":
 
     t = template.Template("""\
     {% load important %}
-    hello {{something|important}}.""")
+    {% load currenttime %}
+    hello {{something|important}}. current time is {% current_time "%Y-%m-%dT%H:%M:%SZ" %}""")
     c = template.Context({"something": "world"})
     print(t.render(c))
+
+    # hello WORLD!!!!!!!. current time is 2014-11-30T10:28:25Z

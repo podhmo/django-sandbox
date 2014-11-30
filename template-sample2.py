@@ -9,7 +9,7 @@ if __name__ == "__main__":
     import django
     settings.configure(
         TEMPLATE_LOADERS=('django.template.loaders.filesystem.Loader',),
-        TEMPLATE_DIRS = (".",),
+        TEMPLATE_DIRS = ("./templates",),
     )
     django.setup()
 

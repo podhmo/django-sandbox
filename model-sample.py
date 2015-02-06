@@ -7,6 +7,7 @@ from django.db import models
 """hmm"""
 from django.conf import settings
 settings.configure(
+    DEBUG=True,
     DATABASES={"default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": ":memory:"
@@ -59,6 +60,12 @@ class Person(models.Model):
 if __name__ == "__main__":
     import django
     django.setup()
+    import logging
+    for name in ['django.db.backends']:
+        logger = logging.getLogger(name)
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(logging.StreamHandler())
+
     create_table(Person)
 
     # model save

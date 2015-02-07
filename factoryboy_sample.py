@@ -113,7 +113,10 @@ class UserFactory(factory.django.DjangoModelFactory):
         if extracted:
             extracted.user = obj
             return extracted
-        return UserProfileFactory.create(user=obj)
+        if create:
+            return UserProfileFactory.create(user=obj)
+        else:
+            return UserProfileFactory.build(user=obj)
 
 
 class UserProfileFactory(factory.Factory):
@@ -127,7 +130,10 @@ class UserProfileFactory(factory.Factory):
         if extracted:
             extracted.profile = obj
             return extracted
-        return UserFactory.create(profile=obj)
+        if create:
+            return UserFactory.create(profile=obj)
+        else:
+            return UserFactory.build(profile=obj)
 
 
 class AuthorityFactory(factory.django.DjangoModelFactory):
@@ -161,7 +167,6 @@ class MultiRelationTests(unittest.TestCase):
     @describe
     def test_gen_profile(self):
         profile = UserProfileFactory()
-        profile.save()
         self.assertIsInstance(profile.user, User)
         self.assertEqual(profile.user.profile, profile)
 

@@ -80,6 +80,7 @@ class User(models.Model):
 class UserProfile(models.Model):
     score = models.IntegerField(default=0, null=False)
     user = models.OneToOneField(User, related_name="profile")
+    # UserProfile().save() is NG. but User().save() is OK
     authority = models.ForeignKey("Authority")
 
     class Meta:
@@ -98,48 +99,35 @@ class Authority(models.Model):
 ########################################
 
 import factory
+from factory import fuzzy
 import random
 random.seed(1234)
 
+marker = object()
+
 
 class UserFactory(factory.django.DjangoModelFactory):
-    FACTORY_FOR = User
-
     name = factory.Sequence(lambda n: "foo{n}".format(n=n))
-    age = factory.LazyAttribute(lambda x: int(30 * random.random()))
+    age = fuzzy.FuzzyInteger(1, 30)
 
-    @factory.post_generation
-    def profile(obj, create, extracted, **kwargs):
-        if extracted:
-            extracted.user = obj
-            return extracted
-        if create:
-            return UserProfileFactory.create(user=obj)
-        else:
-            return UserProfileFactory.build(user=obj)
+    class Meta:
+        model = User
 
 
-class UserProfileFactory(factory.Factory):
-    FACTORY_FOR = UserProfile
+class UserProfileFactory(factory.DjangoModelFactory):
+    score = fuzzy.FuzzyInteger(0, 1000)
+    authority = factory.SubFactory("{}.AuthorityFactory".format(__name__))
+    user = factory.SubFactory("{}.UserFactory".format(__name__))
 
-    authority = factory.LazyAttribute(lambda x: AuthorityFactory())
-    score = factory.LazyAttribute(lambda x: int(1000 * random.random()))
-
-    @factory.post_generation
-    def user(obj, create, extracted, **kwargs):
-        if extracted:
-            extracted.profile = obj
-            return extracted
-        if create:
-            return UserFactory.create(profile=obj)
-        else:
-            return UserFactory.build(profile=obj)
+    class Meta:
+        model = UserProfile
 
 
 class AuthorityFactory(factory.django.DjangoModelFactory):
-    FACTORY_FOR = Authority
-
     is_paid = False
+
+    class Meta:
+        model = Authority
 
 
 ########################################
@@ -179,24 +167,28 @@ class MultiRelationTests(unittest.TestCase):
     @describe
     def test_gen_user(self):
         user = UserFactory()
-        self.assertIsInstance(user.profile, UserProfile)
-        self.assertEqual(user.profile.user, user)
-
-    @describe
-    def test_gen_user2(self):
-        user = UserFactory(profile=UserProfileFactory())
+        user.profile = UserProfileFactory(user=user)
         self.assertIsInstance(user.profile, UserProfile)
         self.assertEqual(user.profile.user, user)
 
     @describe
     def test_gen_authority(self):
-        user = UserFactory()
+        profile = UserProfileFactory()
+        user = profile.user
         self.assertIsInstance(user.profile.authority, Authority)
         self.assertFalse(user.profile.authority.is_paid)
 
     @describe
     def test_gen_authority2(self):
-        user = UserFactory(profile=UserProfileFactory(authority=AuthorityFactory(is_paid=True)))
+        profile = UserProfileFactory(authority__is_paid=True)
+        user = profile.user
+        self.assertIsInstance(user.profile.authority, Authority)
+        self.assertTrue(user.profile.authority.is_paid)
+
+    @describe
+    def test_gen_authority3(self):
+        profile = UserProfileFactory(authority=AuthorityFactory(is_paid=True))
+        user = profile.user
         self.assertIsInstance(user.profile.authority, Authority)
         self.assertTrue(user.profile.authority.is_paid)
 

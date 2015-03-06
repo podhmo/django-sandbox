@@ -1,11 +1,11 @@
 # -*- coding:utf-8 -*-
-import logging
-logger = logging.getLogger(__name__)
-
+import django
 from django.db import models
-
-"""hmm"""
 from django.conf import settings
+from django.db import connections
+from django.core.management.color import no_style
+
+
 settings.configure(
     DEBUG=True,
     DATABASES={"default": {
@@ -15,30 +15,10 @@ settings.configure(
 )
 
 
-def get_connection():
-    "get default database connection"
-    from django.db import connections
-    connection = connections['default']
-    return connection
-
-
-def get_cursor(connection):
-    "get database cursor from connection"
-    return connection.cursor()
-
-
-def get_style():
-    from django.core.management.color import no_style
-    return no_style()
-
-
 def create_table(model):
-    connection = get_connection()
-    cursor = get_cursor(connection)
-    style = get_style()
-
-    sql, references = connection.creation.sql_create_model(
-        model, style)
+    connection = connections['default']
+    cursor = connection.cursor()
+    sql, references = connection.creation.sql_create_model(model, no_style())
     for statement in sql:
         cursor.execute(statement)
 
@@ -46,7 +26,6 @@ def create_table(model):
         create_table(f.rel.through)
 
 
-# model definition
 class X(models.Model):
 
     class Meta:
@@ -61,18 +40,17 @@ class Y(models.Model):
 
 
 if __name__ == "__main__":
-    import django
-    django.setup()
-    import logging
-    for name in ['django.db.backends']:
-        logger = logging.getLogger(name)
-        logger.setLevel(logging.DEBUG)
-        logger.addHandler(logging.StreamHandler())
+    # # this is also ok #
+    # from django.conf import settings
+    # settings.INSTALLED_APPS += (__name__, )
+    # django.setup()
+
+    from django.apps import apps
+    apps.populate([__name__])
 
     create_table(X)
     create_table(Y)
-    from django.db import transaction
-    # with transaction.atomic():
+
     xs = X.objects.bulk_create([X(id=1), X(id=2), X(id=3)])
     ys = Y.objects.bulk_create([Y(id=1), Y(id=2), Y(id=3)])
     xs[0].ys.add(ys[0])
@@ -81,6 +59,4 @@ if __name__ == "__main__":
     xs[2].ys.add(ys[2])
 
     print(xs[0].ys.all())
-    print(ys[0].xs.all()) # error?
-    #     transaction.set_rollback(True)
-    # assert X.objects.count() == 0
+    print(ys[0].xs.all())  # error?

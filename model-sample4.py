@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     from django.apps import apps
     apps.populate([__name__])
-
+    assert apps.get_models() != []
     create_table(X)
     create_table(Y)
 

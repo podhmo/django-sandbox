@@ -34,6 +34,7 @@ if __name__ == "__main__":
     }
     form = PersonForm(params)
 
+    print(form["name"].as_hidden())
     assert form.is_valid() is False
     print(form.cleaned_data)
     print(dict(form.errors))

@@ -1,14 +1,13 @@
 # -*- coding:utf-8 -*-
 import logging
-logger = logging.getLogger(__name__)
-# -*- coding:utf-8 -*-
-import logging
-logger = logging.getLogger(__name__)
-
+from django.forms.models import ModelForm
 from django.db import models
-
-"""hmm"""
 from django.conf import settings
+from django.db import connections
+from django.core.management.color import no_style
+logger = logging.getLogger(__name__)
+"""hmm"""
+
 settings.configure(
     DEBUG=True,
     DATABASES={"default": {
@@ -18,30 +17,10 @@ settings.configure(
 )
 
 
-def get_connection():
-    "get default database connection"
-    from django.db import connections
-    connection = connections['default']
-    return connection
-
-
-def get_cursor(connection):
-    "get database cursor from connection"
-    return connection.cursor()
-
-
-def get_style():
-    from django.core.management.color import no_style
-    return no_style()
-
-
 def create_table(model):
-    connection = get_connection()
-    cursor = get_cursor(connection)
-    style = get_style()
-
-    sql, references = connection.creation.sql_create_model(
-        model, style)
+    connection = connections['default']
+    cursor = connection.cursor()
+    sql, references = connection.creation.sql_create_model(model, no_style())
     for statement in sql:
         cursor.execute(statement)
 
@@ -57,11 +36,7 @@ class Point(models.Model):
         app_label = "myapp"
 
 
-from django.forms.models import ModelForm
-
-
 class PointForm(ModelForm):
-    pass
 
     class Meta:
         model = Point
@@ -76,6 +51,7 @@ if __name__ == "__main__":
         logger.addHandler(logging.StreamHandler())
 
     create_table(Point)
+    print(PointForm().fields)
     print(PointForm()["value"])
     # <input id="id_value" name="value" type="number" value="0" />
 

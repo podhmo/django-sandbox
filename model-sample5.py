@@ -36,7 +36,6 @@ class X(models.Model):
 
 class Y(models.Model):
     name = models.CharField(max_length=255, default="foo", blank=True)
-    xs = models.ManyToManyField(X, related_name="ys")
 
     class Meta:
         app_label = __name__
@@ -76,8 +75,8 @@ create view {prefix}_xory as
     cursor.fetchall()
 
 if __name__ == "__main__":
-    # import logging
-    # logging.basicConfig(level=logging.DEBUG)
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
 
     django.setup()
 
@@ -87,13 +86,6 @@ if __name__ == "__main__":
 
     xs = X.objects.bulk_create([X(id=1), X(id=2), X(id=3)])
     ys = Y.objects.bulk_create([Y(id=1), Y(id=2), Y(id=3)])
-    xs[0].ys.add(ys[0])
-    xs[0].ys.add(ys[1])
-    xs[1].ys.add(ys[1])
-    xs[2].ys.add(ys[2])
-
-    print(xs[0].ys.all())
-    print(ys[0].xs.all())
 
     print(X.objects.count())
     for x_or_y in XorY.objects.all():

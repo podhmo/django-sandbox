@@ -6,14 +6,14 @@ from django.conf import settings
 from django.db import connections
 from django.core.management.color import no_style
 logger = logging.getLogger(__name__)
-"""hmm"""
 
 settings.configure(
     DEBUG=True,
     DATABASES={"default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": ":memory:"
-    }}
+    }},
+    INSTALLED_APPS=[__name__]
 )
 
 
@@ -33,7 +33,7 @@ class Point(models.Model):
     value = models.IntegerField(default=0)
 
     class Meta:
-        app_label = "myapp"
+        app_label = __name__
 
 
 class PointForm(ModelForm):

@@ -11,8 +11,7 @@ see also: myapp/templatetags/important.py
 if __name__ == "__main__":
     from django.conf import settings
     import django
-    settings.configure()
-    settings.INSTALLED_APPS += ("myapp", )
+    settings.configure(INSTALLED_APPS=["myapp"])
     django.setup()
 
     t = template.Template("""\

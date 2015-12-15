@@ -1,0 +1,14 @@
+{# data を追加したい #}
+{% load json_data %}
+
+{% jsondata name="person" %}
+  {"name": "foo", "age": 20}
+{% endjsondata %}
+
+<dl>
+  {% for name, value in person.items %}
+  <dt>{{ name }}</dt>
+  <dd>{{ value }}</dd>
+  {% endfor %}
+</dl>
+

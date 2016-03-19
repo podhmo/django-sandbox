@@ -74,3 +74,10 @@ if __name__ == "__main__":
     qs = Subject.objects.annotate(c=models.Count('comment__subject_id')).order_by("-c")
     for subject in qs:
         print(subject.name, subject.c)
+
+    """
+    SELECT subject.id, subject.name, COUNT(comment.subject_id) AS c
+    FROM subject LEFT OUTER JOIN comment ON ( subject.id = comment.subject_id )
+    GROUP BY subject.id, subject.name
+    ORDER BY c DESC
+    """

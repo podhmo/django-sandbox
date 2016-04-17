@@ -1,8 +1,6 @@
 # -*- coding:utf-8 -*-
 import logging
 import os.path
-from django.db import connections
-from django.core.management.color import no_style
 from django.conf import settings
 from django.conf.urls import url, include
 import rest_framework
@@ -46,18 +44,6 @@ from django.contrib.staticfiles.urls import staticfiles_urlpatterns  # NOQA
 from django.contrib.auth.models import User  # NOQA
 from rest_framework.test import APITestCase  # NOQA
 from rest_framework import routers, serializers, viewsets, status  # NOQA
-
-
-# model
-def create_table(model):
-    connection = connections['default']
-    cursor = connection.cursor()
-    sql, references = connection.creation.sql_create_model(model, no_style())
-    for statement in sql:
-        cursor.execute(statement)
-
-    for f in model._meta.many_to_many:
-        create_table(f.rel.through)
 
 
 # Serializers define the API representation.

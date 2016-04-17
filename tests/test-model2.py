@@ -37,10 +37,13 @@ class User(models.Model):
 
 
 class Test(TestCase):
+    def _callFUT(self):
+        Group(name="foo").save()
+        return Group.objects.count()
+
     def test_it(self):
         with self.assertNumQueries(3):
-            Group(name="foo").save()
-            self.assertEqual(Group.objects.count(), 1)
+            self.assertEqual(self._callFUT(), 1)
 
 if __name__ == "__main__":
     django.setup()

@@ -13,36 +13,25 @@ settings.configure(
     }}
 )
 
-
-def get_connection():
-    "get default database connection"
-    from django.db import connections
-    connection = connections['default']
-    return connection
-
-
-def get_cursor(connection):
-    "get database cursor from connection"
-    return connection.cursor()
-
-
-def get_style():
-    from django.core.management.color import no_style
-    return no_style()
+import django
+from django.db import connections
+from django.core.management.color import no_style
+django.setup()
 
 
 def create_table(model):
-    connection = get_connection()
-    cursor = get_cursor(connection)
-    style = get_style()
+    connection = connections['default']
+    if hasattr(connection, "schema_editor"):
+        with connection.schema_editor() as schema_editor:
+            schema_editor.create_model(model)
+    else:
+        cursor = connection.cursor()
+        sql, references = connection.creation.sql_create_model(model, no_style())
+        for statement in sql:
+            cursor.execute(statement)
 
-    sql, references = connection.creation.sql_create_model(
-        model, style)
-    for statement in sql:
-        cursor.execute(statement)
-
-    for f in model._meta.many_to_many:
-        create_table(f.rel.through)
+        for f in model._meta.many_to_many:
+            create_table(f.rel.through)
 
 
 # model definition

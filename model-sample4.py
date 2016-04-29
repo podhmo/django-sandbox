@@ -11,19 +11,25 @@ settings.configure(
     DATABASES={"default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": ":memory:"
-    }}
+    }},
+    INSTALLED_APPS=(__name__, )
 )
+django.setup()
 
 
 def create_table(model):
     connection = connections['default']
-    cursor = connection.cursor()
-    sql, references = connection.creation.sql_create_model(model, no_style())
-    for statement in sql:
-        cursor.execute(statement)
+    if hasattr(connection, "schema_editor"):
+        with connection.schema_editor() as schema_editor:
+            schema_editor.create_model(model)
+    else:
+        cursor = connection.cursor()
+        sql, references = connection.creation.sql_create_model(model, no_style())
+        for statement in sql:
+            cursor.execute(statement)
 
-    for f in model._meta.many_to_many:
-        create_table(f.rel.through)
+        for f in model._meta.many_to_many:
+            create_table(f.rel.through)
 
 
 class X(models.Model):
@@ -40,11 +46,6 @@ class Y(models.Model):
 
 
 if __name__ == "__main__":
-    # # this is also ok #
-    # from django.conf import settings
-    # settings.INSTALLED_APPS += (__name__, )
-    # django.setup()
-
     from django.apps import apps
     apps.populate([__name__])
     assert apps.get_models() != []

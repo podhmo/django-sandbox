@@ -53,11 +53,21 @@ class Comment(models.Model):
         app_label = __name__
 
 
+class SubComment(models.Model):
+    name = models.CharField(max_length=32, default="", blank=False)
+    comment = models.ForeignKey(Comment, null=False, related_name="subcomments")
+    content = models.TextField(default="")
+
+    class Meta:
+        app_label = __name__
+
+
 if __name__ == "__main__":
     import logging
 
     create_table(Subject)
     create_table(Comment)
+    create_table(SubComment)
 
     subject = Subject(name="X")
     subject.save()
@@ -72,7 +82,10 @@ if __name__ == "__main__":
     subject.save()
     Comment(subject=subject, content="z").save()
     Comment(subject=subject, content="zz").save()
-    Comment(subject=subject, content="zzz").save()
+    c = Comment(subject=subject, content="zzz")
+    c.save()
+    SubComment(comment=c, content="1").save()
+    SubComment(comment=c, content="2").save()
 
     for name in ['django.db.backends']:
         logger = logging.getLogger(name)
@@ -96,3 +109,30 @@ if __name__ == "__main__":
     for s in Subject.objects.all().prefetch_related(Prefetch("comments", queryset=Comment.objects.all().defer("name"), to_attr="cs")).defer("name"):
         for c in s.cs:
             print(c.content)
+
+    class XSubject(Subject):
+        class Meta:
+            proxy = True
+
+    for s in XSubject.objects.all().prefetch_related(Prefetch("comments", queryset=Comment.objects.all().defer("name"), to_attr="comments")).defer("name"):
+        for c in s.cs:
+            print(c.content)
+
+    # qs = Subject.objects.all().prefetch_related("comments")
+    # from django.db.models.query import normalize_prefetch_lookups
+    # print(vars(normalize_prefetch_lookups(qs._prefetch_related_lookups)[0]))
+    # print(vars(Prefetch("comments", queryset=Comment.objects.all().defer("name"), to_attr="cs")))
+    print("-- deep nested ----------------------------------------")
+    qs = Subject.objects.all().prefetch_related("comments", "comments__subcomments")
+    qs = qs._clone()
+    lookup = qs._prefetch_related_lookups[0]
+    lookup2 = qs._prefetch_related_lookups[1]
+    qs._prefetch_related_lookups = [
+        Prefetch(lookup, queryset=Comment.objects.defer("name")),
+        Prefetch(lookup2, queryset=SubComment.objects.defer("name")),
+    ]
+    for s in qs:
+        for c in s.comments.all():
+            print(c.content)
+            for sc in c.subcomments.all():
+                print(sc.content)

@@ -106,17 +106,14 @@ if __name__ == "__main__":
 
     from django.db.models import Prefetch
     print("==Prefetch with defer ======================================")
-    for s in Subject.objects.all().prefetch_related(Prefetch("comments", queryset=Comment.objects.all().defer("name"), to_attr="cs")).defer("name"):
+    for s in Subject.objects.all().prefetch_related(
+            Prefetch("comments", queryset=Comment.objects.all().defer("name"), to_attr="cs"),
+            Prefetch("cs__subcomments", queryset=SubComment.objects.all().defer("name"), to_attr="scs")
+    ).defer("name"):
         for c in s.cs:
             print(c.content)
-
-    class XSubject(Subject):
-        class Meta:
-            proxy = True
-
-    for s in XSubject.objects.all().prefetch_related(Prefetch("comments", queryset=Comment.objects.all().defer("name"), to_attr="comments")).defer("name"):
-        for c in s.cs:
-            print(c.content)
+            for sc in c.scs:
+                print(sc.content)
 
     # qs = Subject.objects.all().prefetch_related("comments")
     # from django.db.models.query import normalize_prefetch_lookups
@@ -131,7 +128,7 @@ if __name__ == "__main__":
         Prefetch(lookup, queryset=Comment.objects.defer("name")),
         Prefetch(lookup2, queryset=SubComment.objects.defer("name")),
     ]
-    for s in qs:
+    for s in qs.defer("name"):
         for c in s.comments.all():
             print(c.content)
             for sc in c.subcomments.all():

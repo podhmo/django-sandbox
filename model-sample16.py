@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 
 """
-aggressive query
+aggressive query with count
 need: pip install django-aggressivequery
 """
 import django
@@ -91,35 +91,17 @@ if __name__ == "__main__":
         logger.setLevel(logging.DEBUG)
         logger.addHandler(logging.StreamHandler())
 
-    r = []
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-    for a in A.objects.all():
-        for b in a.children.all():
-            for c in b.children.all():
-                r.append((a.name, b.name, c.name))
-
-    print("\nself prefetch ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-    from django.db.models import Prefetch
-
-    qs = A.objects.all().prefetch_related(
-        Prefetch("children", queryset=B.objects.all()),
-        Prefetch("children__children", queryset=C.objects.all())
-    )
+    from django.db.models import Count
+    qs = A.objects.annotate(c=Count('children__a_id'))
     for a in qs:
-        for b in a.children.all():
-            for c in b.children.all():
-                r.append((a.name, b.name, c.name))
-
-    print("\naggressive query ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        print(a.name, a.c)
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     from django_aggressivequery import from_query as aggressive_query
 
-    qs = aggressive_query(A.objects.all(), ["children__children"])
+    qs = A.objects.annotate(c=Count('children__a_id'))
+    qs = (aggressive_query(qs, ["children__children"])
+          .prefetch_filter(children=lambda qs: qs.annotate(c=Count('children__b_id'))))
     for a in qs:
         for b in a.children.all():
             for c in b.children.all():
-                r.append((a.name, b.name, c.name))
-
-    # # see: SQL
-    # print("\t#", qs.to_query().query)
-    # for p in qs.to_query()._prefetch_related_lookups:
-    #     print("\t###", p.queryset.query)
+                print(a.name, a.c, b.name, b.c, c.name)

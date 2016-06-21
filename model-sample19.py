@@ -73,7 +73,7 @@ class AuthorProxy(Author):
 
 class User(models.Model):
     name = models.CharField(max_length=32, default="", blank=False)
-    authors = models.ManyToManyField(BookProxy, blank=True, through='UserAuthor')
+    authors = models.ManyToManyField(Book, blank=True, through='UserAuthor')  # xxx
 
     class Meta:
         db_table = "user"
@@ -82,7 +82,7 @@ class User(models.Model):
 
 class UserAuthor(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    author = models.ForeignKey(AuthorProxy, on_delete=models.CASCADE)
+    author = models.ForeignKey(Author, on_delete=models.CASCADE)  # xxx
 
     class Meta:
         db_table = "user_author"
@@ -91,7 +91,7 @@ class UserAuthor(models.Model):
 
 class Booklist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    book = models.ForeignKey(BookProxy, on_delete=models.CASCADE)
+    book = models.ForeignKey(Book, on_delete=models.CASCADE)  # xxx
 
     class Meta:
         db_table = "booklist"
@@ -149,11 +149,9 @@ if __name__ == "__main__":
         Booklist(user=users[0], book=books[2]),
     ])
     # query
-    # qs = Author.objects.filter(titleauthor__book=books[0])
-    # qs = Author.objects.filter(titleauthor__book__booklist=1)
-    # # qs = Author.objects.filter(titleauthor__book__booklist__user=users[0])
-    # authors = list(qs)
-    # print(authors)
+    qs = Author.objects.filter(titleauthor__book__booklist__user=users[0])
+    authors = list(qs)
+    print("@", authors, "@")
 
     def difference(xs, ys):
         return [set(xs).difference(ys), set(ys).difference(xs)]
@@ -167,5 +165,19 @@ if __name__ == "__main__":
     print("author", Author._meta.get_fields())
     print("@difference author proxy - author", difference(AuthorProxy._meta.get_fields(), Author._meta.get_fields()))
     print("---")
-    # Book.add_to_class("booklist", Booklist)
-    print("@difference book proxy - book", difference(BookProxy._meta.get_fields(), Book._meta.get_fields()))
+
+    print(books[0].authors, type(books[0].authors))
+    print(books[0].authors.model, "@ ->")
+    print(id(books[0].authors))
+    books[0].authors.model = AuthorProxy
+    print(id(books[0].authors))
+    authors = books[0].authors
+    authors.model = AuthorProxy
+    print(authors.model)
+    print(id(authors))
+    print(books[0].authors.model, "@ <-")
+    qs = books[0].authors.all()
+    # qs._add_hints(model_cls=AuthorProxy)
+    # print(qs._hints)
+    # print(qs.all()._hints)
+    print(qs.all())

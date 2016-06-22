@@ -98,6 +98,33 @@ class Booklist(models.Model):
         app_label = __name__
 
 
+def setup():
+    from django.apps import apps
+    from collections import defaultdict
+    coerce_map = defaultdict(list)
+    for model in apps.get_models():
+        if getattr(model._meta, "proxy", False):
+            coerce_map[model._meta.concrete_model].append(model)
+
+    # assertion
+    for base_model, candidates in coerce_map.items():
+        if len(candidates) > 1:
+            msg = "coercing candidate is not unique: {} -> {}".format(base_model, candidates)
+            raise AssertionError(msg)
+
+    # monkey patch
+    from django.db.models.query import ModelIterable
+    original_method = ModelIterable.__iter__
+
+    def iter_with_coercing(self):
+        if hasattr(self.queryset.query, "model"):
+            candidates = coerce_map[self.queryset.model]
+            if candidates:
+                self.queryset.query.model = candidates[0]
+        yield from original_method(self)
+
+    ModelIterable.__iter__ = iter_with_coercing
+
 if __name__ == "__main__":
     create_table(User)
     create_table(Author)
@@ -148,36 +175,22 @@ if __name__ == "__main__":
         Booklist(user=users[0], book=books[1]),
         Booklist(user=users[0], book=books[2]),
     ])
-    # query
-    qs = Author.objects.filter(titleauthor__book__booklist__user=users[0])
-    authors = list(qs)
-    print("@", authors, "@")
+    # def difference(xs, ys):
+    #     return [set(xs).difference(ys), set(ys).difference(xs)]
 
-    def difference(xs, ys):
-        return [set(xs).difference(ys), set(ys).difference(xs)]
+    # print("---")
+    # print("book proxy", BookProxy._meta.get_fields())
+    # print("book", Book._meta.get_fields())
+    # print("@difference book proxy - book", difference(BookProxy._meta.get_fields(), Book._meta.get_fields()))
+    # print("user", User._meta.get_fields())
+    # print("author proxy", AuthorProxy._meta.get_fields())
+    # print("author", Author._meta.get_fields())
+    # print("@difference author proxy - author", difference(AuthorProxy._meta.get_fields(), Author._meta.get_fields()))
+    # print("---")
 
-    print("---")
-    print("book proxy", BookProxy._meta.get_fields())
-    print("book", Book._meta.get_fields())
-    print("@difference book proxy - book", difference(BookProxy._meta.get_fields(), Book._meta.get_fields()))
-    print("user", User._meta.get_fields())
-    print("author proxy", AuthorProxy._meta.get_fields())
-    print("author", Author._meta.get_fields())
-    print("@difference author proxy - author", difference(AuthorProxy._meta.get_fields(), Author._meta.get_fields()))
-    print("---")
-
-    print(books[0].authors, type(books[0].authors))
-    print(books[0].authors.model, "@ ->")
-    print(id(books[0].authors))
-    books[0].authors.model = AuthorProxy
-    print(id(books[0].authors))
-    authors = books[0].authors
-    authors.model = AuthorProxy
-    print(authors.model)
-    print(id(authors))
-    print(books[0].authors.model, "@ <-")
-    qs = books[0].authors.all()
-    # qs._add_hints(model_cls=AuthorProxy)
-    # print(qs._hints)
-    # print(qs.all()._hints)
-    print(qs.all())
+    print(books[0].authors.all())
+    setup()
+    print(books[0].authors.all())
+    # # query
+    # qs = Author.objects.filter(titleauthor__book__booklist__user=users[0])
+    # authors = list(qs)

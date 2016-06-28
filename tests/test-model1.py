@@ -30,6 +30,7 @@ settings.configure(
         }
     }
 )
+django.setup()
 
 
 class Item(models.Model):
@@ -48,7 +49,6 @@ class Test(TestCase):
 
 
 if __name__ == "__main__":
-    django.setup()
     from django.apps import apps
     for config in apps.get_app_configs():
         config.models_module = __name__

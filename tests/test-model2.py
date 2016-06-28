@@ -18,6 +18,7 @@ settings.configure(
     }},
     INSTALLED_APPS=[__name__],
 )
+django.setup()
 
 
 class Group(models.Model):
@@ -46,7 +47,6 @@ class Test(TestCase):
             self.assertEqual(self._callFUT(), 1)
 
 if __name__ == "__main__":
-    django.setup()
     from django.apps import apps
     for config in apps.get_app_configs():
         config.models_module = __name__

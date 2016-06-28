@@ -4,7 +4,6 @@
 ordering by joined count
 """
 
-# -*- coding:utf-8 -*-
 import django
 from django.db import models
 from django.conf import settings

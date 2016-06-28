@@ -28,7 +28,7 @@ django.setup()
 class Tests(TestCase):
     def setUp(self):
         from django.contrib.auth.models import User
-        for i in range(110):
+        for i in range(100):
             User.objects.create_superuser("admin{}".format(i), "myemail{}@example.com".format(i), '')
 
     def test_query(self):

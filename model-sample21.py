@@ -62,6 +62,17 @@ class C(models.Model):
         app_label = __name__
 
 
+class DummyQueryset(object):
+    def __init__(self, vals):
+        self.vals = vals
+
+    def __iter__(self):
+        return iter(self.vals)
+
+    def all(self):
+        return self
+
+
 class CustomPrefetchDescriptor(object):
     def __init__(self, cache_name, choices):
         self.cache_name = cache_name
@@ -85,7 +96,7 @@ class CustomPrefetchDescriptor(object):
             result.extend(model.objects.filter(id__in=id_list))
 
         return (
-            result,
+            DummyQueryset(result),
             self.get_rel_obj_attr,
             self.get_instance_attr,
             True,
@@ -106,8 +117,9 @@ class Feed(models.Model):
 
     object_id = models.PositiveIntegerField()
     content_type = models.PositiveIntegerField(choices=([(1, "a"), (2, "b"), (3, "c")]))
-    content_set = CustomPrefetchDescriptor("content_set", [(1, A), (2, B), (3, C)])
+    content_set = CustomPrefetchDescriptor("content2", [(1, A), (2, B), (3, C)])
 
+    # todo: my descriptor
     @property
     def content(self):
         # cached_property?
@@ -178,6 +190,15 @@ if __name__ == "__main__":
         print(len(c.queries))
         content_list = []
         qs = Feed.objects.all().prefetch_related(Feed.with_prefetch("content2"), "content2__k")
+        for feed in qs:
+            content_list.append(feed.content2)
+        print(len(c.queries))  # => 1 + 3 * 1 = 10
+        print([(o.__class__.__name__, o.id, o.k) for o in content_list])
+
+    with with_clear_connection(c, "prefetch"):
+        print(len(c.queries))
+        content_list = []
+        qs = Feed.objects.all().prefetch_related("content_set", "content_set__k")
         for feed in qs:
             content_list.append(feed.content2)
         print(len(c.queries))  # => 1 + 3 * 1 = 10

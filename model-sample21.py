@@ -73,7 +73,7 @@ class DummyQueryset(object):
         return self
 
 
-class CustomPrefetchDescriptor(object):
+class CustomPrefetcher(object):
     def __init__(self, cache_name, choices):
         self.cache_name = cache_name
         self.value_to_model = {k: v for k, v in choices}
@@ -110,6 +110,17 @@ class CustomPrefetchDescriptor(object):
         return (obj.content_type, obj.object_id)
 
 
+class CustomPrefetchDescriptor(object):
+    def __init__(self, cache_name, choices):
+        self.prefetcher = CustomPrefetcher(cache_name, choices)
+
+    def __get__(self, ob, type_=None):
+        if ob is None:
+            return self.prefetcher
+        else:
+            return self.prefetcher.value_to_model[ob.content_type].objects.get(id=ob.object_id)
+
+
 class Feed(models.Model):
     class Meta:
         db_table = "feed"
@@ -117,18 +128,7 @@ class Feed(models.Model):
 
     object_id = models.PositiveIntegerField()
     content_type = models.PositiveIntegerField(choices=([(1, "a"), (2, "b"), (3, "c")]))
-    content_set = CustomPrefetchDescriptor("content2", [(1, A), (2, B), (3, C)])
-
-    # todo: my descriptor
-    @property
-    def content(self):
-        # cached_property?
-        return self.content_set.value_to_model[self.content_type].objects.get(id=self.object_id)
-
-    @classmethod
-    def with_prefetch(cls, to_attr):
-        from django.db.models import Prefetch
-        return Prefetch("content_set", to_attr=to_attr)
+    content = CustomPrefetchDescriptor("content", [(1, A), (2, B), (3, C)])
 
 
 @contextlib.contextmanager
@@ -189,17 +189,18 @@ if __name__ == "__main__":
     with with_clear_connection(c, "prefetch"):
         print(len(c.queries))
         content_list = []
-        qs = Feed.objects.all().prefetch_related(Feed.with_prefetch("content2"), "content2__k")
+        qs = Feed.objects.all().prefetch_related("content", "content__k")
         for feed in qs:
-            content_list.append(feed.content2)
+            content_list.append(feed.content)
         print(len(c.queries))  # => 1 + 3 * 1 = 10
         print([(o.__class__.__name__, o.id, o.k) for o in content_list])
 
-    with with_clear_connection(c, "prefetch"):
+    with with_clear_connection(c, "prefetch with to attr"):
         print(len(c.queries))
         content_list = []
-        qs = Feed.objects.all().prefetch_related("content_set", "content_set__k")
+        from django.db.models import Prefetch
+        qs = Feed.objects.all().prefetch_related(Prefetch("content", to_attr="c"), "c__k")
         for feed in qs:
-            content_list.append(feed.content2)
+            content_list.append(feed.c)
         print(len(c.queries))  # => 1 + 3 * 1 = 10
         print([(o.__class__.__name__, o.id, o.k) for o in content_list])

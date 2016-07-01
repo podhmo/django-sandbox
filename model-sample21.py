@@ -62,17 +62,6 @@ class C(models.Model):
         app_label = __name__
 
 
-class DummyQueryset(object):
-    def __init__(self, vals):
-        self.vals = vals
-
-    def __iter__(self):
-        return iter(self.vals)
-
-    def all(self):
-        return self
-
-
 class CustomPrefetcher(object):
     def __init__(self, cache_name, choices):
         self.cache_name = cache_name
@@ -96,7 +85,7 @@ class CustomPrefetcher(object):
             result.extend(model.objects.filter(id__in=id_list))
         single = True
         return (
-            DummyQueryset(result),
+            result,
             self.key_from_rel_obj,
             self.key_from_instance,
             single,

@@ -28,17 +28,6 @@ def create_table(model):
         schema_editor.create_model(model)
 
 
-class DummyQueryset(object):
-    def __init__(self, vals):
-        self.vals = vals
-
-    def __iter__(self):
-        return iter(self.vals)
-
-    def all(self):
-        return self
-
-
 class CustomPrefetcher(object):
     def __init__(self, name, cache_name):
         self.name = name
@@ -56,7 +45,7 @@ class CustomPrefetcher(object):
         result = list(qs.values("id").annotate(**{self.name: Count('comment__post_id')}))
         single = True
         return (
-            DummyQueryset(result),
+            result,
             self.key_from_rel_obj,
             self.key_from_instance,
             single,

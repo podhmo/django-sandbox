@@ -60,9 +60,10 @@ class AggregatedPrefetcher(object):
 
 
 class AggregatedPrefetchDescriptor(object):
-    def __init__(self, name, gen_query):
+    def __init__(self, name, gen_from_query, gen_from_one):
         cache_name = "_{}_dict".format(name)
-        self.prefetcher = AggregatedPrefetcher(name, cache_name, gen_query)
+        self.prefetcher = AggregatedPrefetcher(name, cache_name, gen_from_query)
+        self.gen_from_one = gen_from_one
 
     def __get__(self, ob, type_=None):
         if ob is None:
@@ -70,7 +71,7 @@ class AggregatedPrefetchDescriptor(object):
         elif hasattr(ob, self.prefetcher.cache_name):
             return getattr(ob, self.prefetcher.cache_name)[self.prefetcher.name]
         else:
-            d = {"id": ob.id, self.prefetcher.name: Comment.objects.filter(post=ob).count()}
+            d = self.gen_from_one(ob, self.prefetcher.name)
             setattr(ob, self.prefetcher.cache_name, d)
             return d[self.prefetcher.name]
 
@@ -84,14 +85,24 @@ def with_clear_connection(c, message):
     yield
 
 
+class Magazine(models.Model):
+    name = models.CharField(max_length=32, default="", blank=False)
+
+    class Meta:
+        db_table = "magazine"
+        app_label = __name__
+
+
 class Post(models.Model):
+    magazine = models.ForeignKey(Magazine, null=True)
     name = models.CharField(max_length=32, default="", blank=False)
     content = models.TextField(default="", blank=False)
 
-    def comment_count_query(objs, name):
-        return Post.objects.values("id").annotate(**{name: Count('comment__post_id')})
-
-    comment_count = AggregatedPrefetchDescriptor("comment_count", comment_count_query)
+    comment_count = AggregatedPrefetchDescriptor(
+        "comment_count",
+        lambda objs, name: Post.objects.values("id").annotate(**{name: Count('comment__post_id')}),
+        lambda ob, name: {"id": ob.id, name: Comment.objects.filter(post=ob).count()}
+    )
 
     class Meta:
         db_table = "post"
@@ -109,6 +120,7 @@ class Comment(models.Model):
 
 
 if __name__ == "__main__":
+    create_table(Magazine)
     create_table(Post)
     create_table(Comment)
 
@@ -151,5 +163,26 @@ if __name__ == "__main__":
         qs = Post.objects.all().prefetch_related("comment_count")
         for post in qs:
             comment_count_list.append((post.id, post.comment_count))
+        print(len(c.queries))  # => 1 + 1 = 2
+        print(comment_count_list)
+
+    magazine = Magazine(name="foo")
+    magazine.save()
+    magazine.refresh_from_db()
+    for post in Post.objects.all()[1:]:
+        magazine.post_set.add(post)
+    magazine2 = Magazine(name="foo")
+    magazine2.save()
+    magazine2.refresh_from_db()
+    for post in Post.objects.all()[:1]:
+        magazine2.post_set.add(post)
+
+    with with_clear_connection(c, "prefetch nested 3"):
+        print(len(c.queries))
+        comment_count_list = []
+        qs = Magazine.objects.all().prefetch_related("post_set", "post_set__comment_count")
+        for magazine in qs:
+            for post in magazine.post_set.all():
+                comment_count_list.append((magazine.id, post.id, post.comment_count))
         print(len(c.queries))  # => 1 + 1 = 2
         print(comment_count_list)

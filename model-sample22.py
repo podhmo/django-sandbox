@@ -28,21 +28,21 @@ def create_table(model):
         schema_editor.create_model(model)
 
 
-class CustomPrefetcher(object):
-    def __init__(self, name, cache_name):
+class AggregatedPrefetcher(object):
+    def __init__(self, name, cache_name, gen_query):
         self.name = name
         self.cache_name = cache_name
+        self.gen_query = gen_query
 
     def is_cached(self, instance):
         return False
 
     def get_prefetch_queryset(self, objs, qs):
         if qs is not None:
-            raise ValueError("Custom queryset can't be used for this lookup.")
+            raise ValueError("Aggregated queryset can't be used for this lookup.")
 
         id_list = [o.id for o in objs]
-        qs = Post.objects.filter(id__in=id_list)
-        result = list(qs.values("id").annotate(**{self.name: Count('comment__post_id')}))
+        result = list(self.gen_query(objs, self.name).filter(id__in=id_list))
         single = True
         return (
             result,
@@ -59,9 +59,10 @@ class CustomPrefetcher(object):
         return obj.id
 
 
-class CustomPrefetchDescriptor(object):
-    def __init__(self, name):
-        self.prefetcher = CustomPrefetcher(name, "_comment_count_dict")
+class AggregatedPrefetchDescriptor(object):
+    def __init__(self, name, gen_query):
+        cache_name = "_{}_dict".format(name)
+        self.prefetcher = AggregatedPrefetcher(name, cache_name, gen_query)
 
     def __get__(self, ob, type_=None):
         if ob is None:
@@ -86,7 +87,11 @@ def with_clear_connection(c, message):
 class Post(models.Model):
     name = models.CharField(max_length=32, default="", blank=False)
     content = models.TextField(default="", blank=False)
-    comment_count = CustomPrefetchDescriptor("comment_count")
+
+    def comment_count_query(objs, name):
+        return Post.objects.values("id").annotate(**{name: Count('comment__post_id')})
+
+    comment_count = AggregatedPrefetchDescriptor("comment_count", comment_count_query)
 
     class Meta:
         db_table = "post"

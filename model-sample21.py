@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 
 """
-prefetch related with generic foreign key (selfhand)
+prefetch related with generic foreign key (self defined)
 """
 import django
 import contextlib
@@ -80,7 +80,7 @@ class CustomPrefetcher(object):
         self.model_to_value = {v: k for k, v in choices}
 
     def is_cached(self, instance):
-        return False  # xxx
+        return False
 
     def get_prefetch_queryset(self, objs, qs):
         if qs is not None:
@@ -94,19 +94,19 @@ class CustomPrefetcher(object):
         result = []
         for model, id_list in d.items():
             result.extend(model.objects.filter(id__in=id_list))
-
+        single = True
         return (
             DummyQueryset(result),
-            self.get_rel_obj_attr,
-            self.get_instance_attr,
-            True,
+            self.key_from_rel_obj,
+            self.key_from_instance,
+            single,
             self.cache_name
         )
 
-    def get_rel_obj_attr(self, relobj):
+    def key_from_rel_obj(self, relobj):
         return (self.model_to_value[relobj.__class__], relobj._get_pk_val())
 
-    def get_instance_attr(self, obj):
+    def key_from_instance(self, obj):
         return (obj.content_type, obj.object_id)
 
 

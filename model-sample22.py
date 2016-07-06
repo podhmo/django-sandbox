@@ -29,6 +29,7 @@ def create_table(model):
 
 
 class AggregatedPrefetcher(object):
+    # {id: number, <name>: number} という形式の辞書のコレクションを集計用のqueryに期待している
     def __init__(self, name, cache_name, gen_query):
         self.name = name
         self.cache_name = cache_name
@@ -39,7 +40,7 @@ class AggregatedPrefetcher(object):
 
     def get_prefetch_queryset(self, objs, qs):
         if qs is not None:
-            raise ValueError("Aggregated queryset can't be used for this lookup.")
+            raise ValueError("Aggregated prefetch: queryset can't be used for this lookup.")
 
         id_list = [o.id for o in objs]
         result = list(self.gen_query(objs, self.name).filter(id__in=id_list))
@@ -59,21 +60,33 @@ class AggregatedPrefetcher(object):
         return obj.id
 
 
-class AggregatedPrefetchDescriptor(object):
-    def __init__(self, name, gen_from_query, gen_from_one):
+class AggregatedPrefetchProperty(object):
+    def __init__(self, from_query, name=None, from_instance=None, default=0):
+        name = name or from_query.__name__
         cache_name = "_{}_dict".format(name)
-        self.prefetcher = AggregatedPrefetcher(name, cache_name, gen_from_query)
-        self.gen_from_one = gen_from_one
+        self.prefetcher = AggregatedPrefetcher(name, cache_name, from_query)
+        self.from_instance = from_instance
+        self.default = default
+
+    def instance_property(self, from_instance):
+        self.from_instance = from_instance
+        if hasattr(from_instance, "__doc__"):
+            self.__doc__ = from_instance.__doc__
+        return self
 
     def __get__(self, ob, type_=None):
         if ob is None:
             return self.prefetcher
         elif hasattr(ob, self.prefetcher.cache_name):
-            return getattr(ob, self.prefetcher.cache_name)[self.prefetcher.name]
+            d = getattr(ob, self.prefetcher.cache_name)
+            return d[self.prefetcher.name] if d else self.default
         else:
-            d = self.gen_from_one(ob, self.prefetcher.name)
+            d = {"id": ob.id, self.prefetcher.name: self.from_instance(ob)}
             setattr(ob, self.prefetcher.cache_name, d)
             return d[self.prefetcher.name]
+
+
+aggregated_property = AggregatedPrefetchProperty
 
 
 @contextlib.contextmanager
@@ -98,11 +111,13 @@ class Post(models.Model):
     name = models.CharField(max_length=32, default="", blank=False)
     content = models.TextField(default="", blank=False)
 
-    comment_count = AggregatedPrefetchDescriptor(
-        "comment_count",
-        lambda objs, name: Post.objects.values("id").annotate(**{name: Count('comment__post_id')}),
-        lambda ob, name: {"id": ob.id, name: Comment.objects.filter(post=ob).count()}
-    )
+    @aggregated_property
+    def comment_count(objs, name):
+        return Post.objects.values("id").annotate(**{name: Count('comment__post_id')})
+
+    @comment_count.instance_property
+    def comment_count(self):
+        return Comment.objects.filter(post=self).count()
 
     class Meta:
         db_table = "post"

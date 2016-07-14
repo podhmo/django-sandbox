@@ -12,6 +12,8 @@ settings.configure(
     ALLOWED_HOSTS=['*'],
     INSTALLED_APPS=[
         'django.contrib.staticfiles',
+        'django.contrib.contenttypes',
+        'django.contrib.auth',
         "rest_framework",
         __name__,
     ],
@@ -36,21 +38,18 @@ settings.configure(
     }
 )
 
+import django
+django.setup()
 
 # model
 from django.db import connections
-from django.core.management.color import no_style
 
 
 def create_table(model):
     connection = connections['default']
-    cursor = connection.cursor()
-    sql, references = connection.creation.sql_create_model(model, no_style())
-    for statement in sql:
-        cursor.execute(statement)
+    with connection.schema_editor() as schema_editor:
+        schema_editor.create_model(model)
 
-    for f in model._meta.many_to_many:
-        create_table(f.rel.through)
 
 # rest
 from django.contrib.auth.models import User
@@ -116,8 +115,6 @@ if __name__ == "__main__":
     parser.add_argument("--run-server", dest="run_server", action="store_true", default=False)
     args = parser.parse_args(sys.argv[1:])
 
-    import django
-    django.setup()
     create_table(User)
 
     if args.run_server:

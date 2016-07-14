@@ -60,6 +60,24 @@ class XTag(models.Model):
         app_label = __name__
 
 
+def custom_relation_property(getter):
+    name = getter.__name__
+    cache_name = "_{}".format(name)
+
+    def _getter(self):
+        result = getattr(self, cache_name, None)
+        if result is None:
+            result = getter(self)
+            setattr(self, cache_name, result)
+        return result
+
+    def _setter(self, value):
+        setattr(self, cache_name, value)
+
+    prop = property(_getter, _setter, doc=_getter.__doc__)
+    return prop
+
+
 class Y(models.Model):
     name = models.CharField(max_length=32, null=False, default="")
     ctime = models.DateTimeField(auto_now_add=True, null=False)
@@ -67,16 +85,9 @@ class Y(models.Model):
 
     xs = models.ManyToManyField(X, related_name="ys")
 
-    @property
+    @custom_relation_property
     def valid_xs(self):
-        result = getattr(self, "_valid_xs", None)
-        if result is None:
-            result = self._valid_xs = X.valid_set(self.xs.all())
-        return result
-
-    @valid_xs.setter
-    def valid_xs(self, value):
-        self._valid_xs = value
+        return X.valid_set(self.xs.all())
 
     @classmethod
     def prefetch_valid_xs(cls):

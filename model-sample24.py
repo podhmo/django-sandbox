@@ -174,5 +174,3 @@ if __name__ == "__main__":
     with with_clear_connection(c, "more_prefetch"):
         for y in Y.objects.all().prefetch_related(Y.prefetch_valid_xs(), "valid_xs__tags"):
             print("@@", y.id, y.name, [x.name for x in y.valid_xs], [[t.name for t in x.tags.all()] for x in y.valid_xs])
-    #         for x in y.valid_xs:
-    #             print("x")

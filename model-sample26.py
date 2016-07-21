@@ -52,8 +52,8 @@ class ContentTypeWithPrefetch(ContentType):
 
 
 class MyGenericForeignKey(GenericForeignKey):
-    def get_content_type(self, obj=None, id=None, using=None):
-        ct = super().get_content_type(obj, id, using)
+    def get_content_type(self, *args, **kwargs):
+        ct = super().get_content_type(*args, **kwargs)
         ct.__class__ = ContentTypeWithPrefetch
         return ct
 

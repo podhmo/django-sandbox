@@ -22,6 +22,17 @@ django.setup()
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
+_activated = False
+
+
+def activate():
+    global _activated
+    _activated = True
+
+
+def is_active():
+    return _activated
+
 
 class ContentTypeForFeed(ContentType):
     class Meta:
@@ -29,7 +40,7 @@ class ContentTypeForFeed(ContentType):
 
     def get_all_objects_for_this_type(self, **kwargs):
         qs = super().get_all_objects_for_this_type(**kwargs)
-        return self.add_prefetch(qs)
+        return self.add_prefetch(qs) if is_active() else qs
 
     def add_prefetch(self, qs):
         model = qs.model
@@ -182,14 +193,19 @@ if __name__ == "__main__":
             return [content]
 
     with with_clear_connection(c, "n + 1"):
-        print(len(c.queries))
         content_list = []
         for feed in Feed.objects.all():
             content_list.append(use(feed.content))
         print(len(c.queries))
 
     with with_clear_connection(c, "prefetch"):
+        content_list = []
+        for feed in Feed.objects.all().prefetch_related("content"):
+            content_list.append(use(feed.content))
         print(len(c.queries))
+
+    activate()
+    with with_clear_connection(c, "prefetch"):
         content_list = []
         for feed in Feed.objects.all().prefetch_related("content"):
             content_list.append(use(feed.content))

@@ -3,8 +3,9 @@
 """
 deep prefetch related with generic foreign key (more individual usecase)
 """
-import django
+import threading
 import contextlib
+import django
 from django.db import models
 from django.conf import settings
 from django.db import connections
@@ -22,40 +23,38 @@ django.setup()
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
-_activated = False
+
+class GFKPrefetchContext:
+    def __init__(self):
+        self._context = threading.local()
+        self._context.attach_prefetch = lambda qs: qs
+
+    @contextlib.contextmanager
+    def activate_prefetch(self, fn):
+        oldvalue = self._context.attach_prefetch
+        self._context.attach_prefetch = fn
+        yield
+        self._context.attach_prefetch = oldvalue
+
+    def attach_prefetch(self, qs):
+        return self._context.attach_prefetch(qs)
+
+gfk_prefetch_context = GFKPrefetchContext()
 
 
-def activate():
-    global _activated
-    _activated = True
-
-
-def is_active():
-    return _activated
-
-
-class ContentTypeForFeed(ContentType):
+class ContentTypeWithPrefetch(ContentType):
     class Meta:
         proxy = True
 
     def get_all_objects_for_this_type(self, **kwargs):
         qs = super().get_all_objects_for_this_type(**kwargs)
-        return self.add_prefetch(qs) if is_active() else qs
-
-    def add_prefetch(self, qs):
-        model = qs.model
-        if issubclass(model, A):
-            return qs.prefetch_related("xs")
-        elif issubclass(model, B):
-            return qs.prefetch_related("ys")
-        else:
-            return qs
+        return gfk_prefetch_context.attach_prefetch(qs)
 
 
 class MyGenericForeignKey(GenericForeignKey):
     def get_content_type(self, obj=None, id=None, using=None):
         ct = super().get_content_type(obj, id, using)
-        ct.__class__ = ContentTypeForFeed
+        ct.__class__ = ContentTypeWithPrefetch
         return ct
 
 
@@ -204,9 +203,18 @@ if __name__ == "__main__":
             content_list.append(use(feed.content))
         print(len(c.queries))
 
-    activate()
+    def attach_prefetch(qs):
+        model = qs.model
+        if issubclass(model, A):
+            return qs.prefetch_related("xs")
+        elif issubclass(model, B):
+            return qs.prefetch_related("ys")
+        else:
+            return qs
+
     with with_clear_connection(c, "prefetch optimized"):
         content_list = []
-        for feed in Feed.objects.all().prefetch_related("content"):
-            content_list.append(use(feed.content))
-        print(len(c.queries))
+        with gfk_prefetch_context.activate_prefetch(attach_prefetch):
+            for feed in Feed.objects.all().prefetch_related("content"):
+                content_list.append(use(feed.content))
+            print(len(c.queries))

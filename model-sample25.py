@@ -23,6 +23,31 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
 
+class ContentTypeForFeed(ContentType):
+    class Meta:
+        proxy = True
+
+    def get_all_objects_for_this_type(self, **kwargs):
+        qs = super().get_all_objects_for_this_type(**kwargs)
+        return self.add_prefetch(qs)
+
+    def add_prefetch(self, qs):
+        model = qs.model
+        if issubclass(model, A):
+            return qs.prefetch_related("xs")
+        elif issubclass(model, B):
+            return qs.prefetch_related("ys")
+        else:
+            return qs
+
+
+class MyGenericForeignKey(GenericForeignKey):
+    def get_content_type(self, obj=None, id=None, using=None):
+        ct = super().get_content_type(obj, id, using)
+        ct.__class__ = ContentTypeForFeed
+        return ct
+
+
 def create_table(model):
     connection = connections['default']
     with connection.schema_editor() as schema_editor:
@@ -78,7 +103,7 @@ class Feed(models.Model):
 
     object_id = models.PositiveIntegerField()
     content_type = models.ForeignKey(ContentType)
-    content = GenericForeignKey('content_type', 'object_id')
+    content = MyGenericForeignKey('content_type', 'object_id')
 
 
 @contextlib.contextmanager
